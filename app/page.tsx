@@ -232,7 +232,7 @@ export default function Home() {
                         type="file"
                         accept=".csv"
                         onChange={(e) => handleFileChange(index, e as React.ChangeEvent<HTMLInputElement>)}
-                        ref={(el) => fileInputRefs.current[index] = el}
+                        ref={(el) => { fileInputRefs.current[index] = el; }}
                       />
                     </div>
                     {fileNames[index] && (
