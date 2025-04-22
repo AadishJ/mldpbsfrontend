@@ -12,7 +12,7 @@ import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@
 import { Accordion, AccordionContent, AccordionItem, AccordionTrigger } from "@/components/ui/accordion";
 import { Label } from "@/components/ui/label";
 import { Separator } from "@/components/ui/separator";
-import { InfoIcon, AlertCircle, FileIcon } from "lucide-react";
+import { InfoIcon, AlertCircle, FileIcon, BarChart } from "lucide-react";
 
 export default function Home() {
     const [numFiles, setNumFiles] = useState<number>(1);
@@ -261,7 +261,7 @@ export default function Home() {
                 <div className="flex flex-col items-center justify-center p-10">
                     <div className="animate-spin rounded-full h-12 w-12 border-b-2 border-primary mb-4"></div>
                     <p className="text-center">Processing your data... This may take several minutes for large datasets.</p>
-                    <p className="text-center text-sm text-muted-foreground mt-2">Your data is being sliced and analyzed by multiple ML models</p>
+                    <p className="text-center text-sm text-muted-foreground mt-2">Your data is being processed in batches and analyzed by multiple ML models</p>
                 </div>
             )}
 
@@ -275,28 +275,54 @@ export default function Home() {
 
             {apiResponse && (
                 <div className="space-y-8">
-                    <Tabs defaultValue="predictions">
-                        <TabsList className="grid w-full grid-cols-3">
-                            <TabsTrigger value="predictions">Prediction Results</TabsTrigger>
+                    <Tabs defaultValue="datasets">
+                        <TabsList className="grid w-full grid-cols-4">
+                            <TabsTrigger value="datasets">Dataset Summaries</TabsTrigger>
+                            <TabsTrigger value="batches">Batch Results</TabsTrigger>
                             <TabsTrigger value="performance">Allocation Performance</TabsTrigger>
                             <TabsTrigger value="details">Detailed Results</TabsTrigger>
                         </TabsList>
 
-                        <TabsContent value="predictions" className="space-y-4">
-                            <h2 className="text-2xl font-bold mt-4">Prediction Results</h2>
+                        <TabsContent value="datasets" className="space-y-4">
+                            <h2 className="text-2xl font-bold mt-4">Dataset Summaries</h2>
 
                             <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
-                                {apiResponse.predictions.map((pred: any, idx: number) => (
+                                {Object.entries(apiResponse.dataset_summaries || {}).map(([datasetName, summary]: [string, any], idx: number) => (
                                     <Card key={idx}>
                                         <CardHeader className="pb-2">
-                                            <CardTitle className="text-lg">{pred.dataset}</CardTitle>
+                                            <CardTitle className="text-lg">{datasetName}</CardTitle>
                                         </CardHeader>
                                         <CardContent>
-                                            <div className="text-3xl font-bold">{pred.xgb_average.toFixed(2)}</div>
-                                            <p className="text-sm text-muted-foreground">{pred.percentage.toFixed(2)}% of total allocation</p>
+                                            <div className="text-3xl font-bold">{summary.total_percentage.toFixed(2)}%</div>
+                                            <p className="text-sm text-muted-foreground">of total allocation</p>
+                                            <p className="text-sm mt-2">{summary.batches.length} batches processed</p>
                                         </CardContent>
                                     </Card>
                                 ))}
+                            </div>
+                        </TabsContent>
+
+                        <TabsContent value="batches" className="space-y-4">
+                            <h2 className="text-2xl font-bold mt-4">Batch Results</h2>
+                            <div className="rounded-md border">
+                                <Table>
+                                    <TableHeader>
+                                        <TableRow>
+                                            <TableHead>Batch Name</TableHead>
+                                            <TableHead>XGBoost Average</TableHead>
+                                            <TableHead>Allocation Percentage</TableHead>
+                                        </TableRow>
+                                    </TableHeader>
+                                    <TableBody>
+                                        {(apiResponse.batch_predictions || []).map((batch: any, idx: number) => (
+                                            <TableRow key={idx}>
+                                                <TableCell>{batch.batch_name}</TableCell>
+                                                <TableCell>{batch.xgb_average.toFixed(2)}</TableCell>
+                                                <TableCell>{batch.percentage.toFixed(2)}%</TableCell>
+                                            </TableRow>
+                                        ))}
+                                    </TableBody>
+                                </Table>
                             </div>
                         </TabsContent>
 
@@ -337,23 +363,70 @@ export default function Home() {
                             <h2 className="text-2xl font-bold mb-4">Detailed Results</h2>
 
                             <Accordion type="single" collapsible className="w-full">
-                                <AccordionItem value="dataset-details">
-                                    <AccordionTrigger>Dataset Processing Details</AccordionTrigger>
+                                <AccordionItem value="batch-details">
+                                    <AccordionTrigger>Batch Processing Details</AccordionTrigger>
                                     <AccordionContent>
                                         <div className="space-y-6">
-                                            {apiResponse.predictions.map((pred: any, idx: number) => (
+                                            {(apiResponse.batch_predictions || []).map((batch: any, idx: number) => (
                                                 <div key={idx} className="space-y-2">
-                                                    <h3 className="text-lg font-semibold">{pred.dataset}</h3>
-                                                    {pred.detailed_results.slice_results.map((slice: any, sliceIdx: number) => (
-                                                        <div key={sliceIdx} className="ml-4 space-y-1">
-                                                            <p className="font-medium">Slice {slice.slice} ({slice.row_count} rows):</p>
-                                                            {Object.entries(slice.results).map(([modelName, modelResults]: [string, any]) => (
-                                                                <div key={modelName} className="ml-4 space-y-1">
-                                                                    <p className="text-sm">{modelName}: MSE = {modelResults.mse.toFixed(4)}</p>
-                                                                </div>
-                                                            ))}
+                                                    <h3 className="text-lg font-semibold">{batch.batch_name}</h3>
+                                                    <div className="ml-4 space-y-1">
+                                                        <p><span className="font-medium">XGBoost Average:</span> {batch.xgb_average.toFixed(4)}</p>
+                                                        <p><span className="font-medium">Percentage:</span> {batch.percentage.toFixed(2)}%</p>
+
+                                                        {batch.results && Object.entries(batch.results).map(([modelName, modelResults]: [string, any]) => (
+                                                            <div key={modelName} className="ml-4 mt-2">
+                                                                <p className="font-medium">{modelName}:</p>
+                                                                <p className="text-sm">MSE: {modelResults.mse.toFixed(4)}</p>
+                                                                {modelResults.predictions && (
+                                                                    <div className="flex items-center gap-2 mt-1">
+                                                                        <BarChart className="h-4 w-4" />
+                                                                        <p className="text-xs text-muted-foreground">
+                                                                            Predictions: {modelResults.predictions.map((val: number) => val.toFixed(1)).join(', ')}
+                                                                        </p>
+                                                                    </div>
+                                                                )}
+                                                            </div>
+                                                        ))}
+                                                    </div>
+                                                    <Separator className="my-4" />
+                                                </div>
+                                            ))}
+                                        </div>
+                                    </AccordionContent>
+                                </AccordionItem>
+
+                                <AccordionItem value="dataset-summaries">
+                                    <AccordionTrigger>Dataset Summaries</AccordionTrigger>
+                                    <AccordionContent>
+                                        <div className="space-y-6">
+                                            {Object.entries(apiResponse.dataset_summaries || {}).map(([datasetName, summary]: [string, any], idx: number) => (
+                                                <div key={idx} className="space-y-2">
+                                                    <h3 className="text-lg font-semibold">{datasetName}</h3>
+                                                    <p className="ml-4"><span className="font-medium">Total Percentage:</span> {summary.total_percentage.toFixed(2)}%</p>
+                                                    <div className="ml-4 mt-2">
+                                                        <p className="font-medium">Batches:</p>
+                                                        <div className="rounded-md border mt-2">
+                                                            <Table>
+                                                                <TableHeader>
+                                                                    <TableRow>
+                                                                        <TableHead>Batch Name</TableHead>
+                                                                        <TableHead>XGBoost Average</TableHead>
+                                                                        <TableHead>Percentage</TableHead>
+                                                                    </TableRow>
+                                                                </TableHeader>
+                                                                <TableBody>
+                                                                    {summary.batches.map((batch: any, batchIdx: number) => (
+                                                                        <TableRow key={batchIdx}>
+                                                                            <TableCell>{batch.batch_name}</TableCell>
+                                                                            <TableCell>{batch.xgb_average.toFixed(2)}</TableCell>
+                                                                            <TableCell>{batch.percentage.toFixed(2)}%</TableCell>
+                                                                        </TableRow>
+                                                                    ))}
+                                                                </TableBody>
+                                                            </Table>
                                                         </div>
-                                                    ))}
+                                                    </div>
                                                     <Separator className="my-4" />
                                                 </div>
                                             ))}
