@@ -140,6 +140,7 @@ export default function Home() {
 
         const result = await response.json();
         setApiResponse(result);
+        console.log(result);
 
         // Parse the buddy allocation output for display
         if (result.buddy_allocation_output) {
