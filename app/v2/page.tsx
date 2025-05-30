@@ -275,54 +275,112 @@ export default function Home() {
 
             {apiResponse && (
                 <div className="space-y-8">
-                    <Tabs defaultValue="datasets">
+                    <Tabs defaultValue="batch-groups">
                         <TabsList className="grid w-full grid-cols-4">
-                            <TabsTrigger value="datasets">Dataset Summaries</TabsTrigger>
-                            <TabsTrigger value="batches">Batch Results</TabsTrigger>
+                            <TabsTrigger value="batch-groups">Batch Groups</TabsTrigger>
+                            <TabsTrigger value="datasets">Dataset Summary</TabsTrigger>
                             <TabsTrigger value="performance">Allocation Performance</TabsTrigger>
                             <TabsTrigger value="details">Detailed Results</TabsTrigger>
                         </TabsList>
 
-                        <TabsContent value="datasets" className="space-y-4">
-                            <h2 className="text-2xl font-bold mt-4">Dataset Summaries</h2>
+                        <TabsContent value="batch-groups" className="space-y-4">
+                            <h2 className="text-2xl font-bold mt-4">Batch Group Results</h2>
+                            <p className="text-muted-foreground mb-4">
+                                Each batch group combines the same batch number from all datasets
+                            </p>
 
                             <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
-                                {Object.entries(apiResponse.dataset_summaries || {}).map(([datasetName, summary]: [string, any], idx: number) => (
+                                {(apiResponse.batch_groups || []).map((batchGroup: any, idx: number) => (
                                     <Card key={idx}>
                                         <CardHeader className="pb-2">
-                                            <CardTitle className="text-lg">{datasetName}</CardTitle>
+                                            <CardTitle className="text-lg">{batchGroup.batch_group}</CardTitle>
+                                            <CardDescription>
+                                                {batchGroup.datasets_in_batch.join(', ')}
+                                            </CardDescription>
                                         </CardHeader>
                                         <CardContent>
-                                            <div className="text-3xl font-bold">{summary.total_percentage.toFixed(2)}%</div>
-                                            <p className="text-sm text-muted-foreground">of total allocation</p>
-                                            <p className="text-sm mt-2">{summary.batches.length} batches processed</p>
+                                            <div className="text-3xl font-bold">{batchGroup.percentage.toFixed(2)}%</div>
+                                            <p className="text-sm text-muted-foreground">allocation percentage</p>
+                                            <p className="text-sm mt-2">
+                                                Combined Average: {batchGroup.combined_xgb_average.toFixed(2)}
+                                            </p>
+                                            <p className="text-sm">
+                                                Total Rows: {batchGroup.total_rows}
+                                            </p>
                                         </CardContent>
                                     </Card>
                                 ))}
                             </div>
-                        </TabsContent>
 
-                        <TabsContent value="batches" className="space-y-4">
-                            <h2 className="text-2xl font-bold mt-4">Batch Results</h2>
                             <div className="rounded-md border">
                                 <Table>
                                     <TableHeader>
                                         <TableRow>
-                                            <TableHead>Batch Name</TableHead>
-                                            <TableHead>XGBoost Average</TableHead>
-                                            <TableHead>Allocation Percentage</TableHead>
+                                            <TableHead>Batch Group</TableHead>
+                                            <TableHead>Datasets</TableHead>
+                                            <TableHead>Combined Average</TableHead>
+                                            <TableHead>Allocation %</TableHead>
+                                            <TableHead>Total Rows</TableHead>
                                         </TableRow>
                                     </TableHeader>
                                     <TableBody>
-                                        {(apiResponse.batch_predictions || []).map((batch: any, idx: number) => (
+                                        {(apiResponse.batch_groups || []).map((batchGroup: any, idx: number) => (
                                             <TableRow key={idx}>
-                                                <TableCell>{batch.batch_name}</TableCell>
-                                                <TableCell>{batch.xgb_average.toFixed(2)}</TableCell>
-                                                <TableCell>{batch.percentage.toFixed(2)}%</TableCell>
+                                                <TableCell className="font-medium">{batchGroup.batch_group}</TableCell>
+                                                <TableCell>{batchGroup.datasets_in_batch.join(', ')}</TableCell>
+                                                <TableCell>{batchGroup.combined_xgb_average.toFixed(2)}</TableCell>
+                                                <TableCell>{batchGroup.percentage.toFixed(2)}%</TableCell>
+                                                <TableCell>{batchGroup.total_rows}</TableCell>
                                             </TableRow>
                                         ))}
                                     </TableBody>
                                 </Table>
+                            </div>
+                        </TabsContent>
+
+                        <TabsContent value="datasets" className="space-y-4">
+                            <h2 className="text-2xl font-bold mt-4">Dataset Summary</h2>
+                            <p className="text-muted-foreground mb-4">
+                                Overview of how each dataset contributes to different batch groups
+                            </p>
+
+                            <div className="space-y-4">
+                                {Object.entries(apiResponse.dataset_summary || {}).map(([datasetName, summary]: [string, any], idx: number) => (
+                                    <Card key={idx}>
+                                        <CardHeader>
+                                            <CardTitle className="text-lg">{datasetName}</CardTitle>
+                                        </CardHeader>
+                                        <CardContent>
+                                            <p className="mb-4">
+                                                <span className="font-medium">Total Rows:</span> {summary.total_rows}
+                                            </p>
+
+                                            <div className="space-y-2">
+                                                <h4 className="font-medium">Batch Contributions:</h4>
+                                                <div className="rounded-md border">
+                                                    <Table>
+                                                        <TableHeader>
+                                                            <TableRow>
+                                                                <TableHead>Batch Group</TableHead>
+                                                                <TableHead>Rows</TableHead>
+                                                                <TableHead>XGB Average</TableHead>
+                                                            </TableRow>
+                                                        </TableHeader>
+                                                        <TableBody>
+                                                            {summary.batch_contributions.map((contribution: any, contribIdx: number) => (
+                                                                <TableRow key={contribIdx}>
+                                                                    <TableCell>{contribution.batch_group}</TableCell>
+                                                                    <TableCell>{contribution.row_count}</TableCell>
+                                                                    <TableCell>{contribution.xgb_average.toFixed(2)}</TableCell>
+                                                                </TableRow>
+                                                            ))}
+                                                        </TableBody>
+                                                    </Table>
+                                                </div>
+                                            </div>
+                                        </CardContent>
+                                    </Card>
+                                ))}
                             </div>
                         </TabsContent>
 
@@ -363,29 +421,43 @@ export default function Home() {
                             <h2 className="text-2xl font-bold mb-4">Detailed Results</h2>
 
                             <Accordion type="single" collapsible className="w-full">
-                                <AccordionItem value="batch-details">
-                                    <AccordionTrigger>Batch Processing Details</AccordionTrigger>
+                                <AccordionItem value="batch-group-details">
+                                    <AccordionTrigger>Batch Group Details</AccordionTrigger>
                                     <AccordionContent>
                                         <div className="space-y-6">
-                                            {(apiResponse.batch_predictions || []).map((batch: any, idx: number) => (
+                                            {(apiResponse.batch_groups || []).map((batchGroup: any, idx: number) => (
                                                 <div key={idx} className="space-y-2">
-                                                    <h3 className="text-lg font-semibold">{batch.batch_name}</h3>
+                                                    <h3 className="text-lg font-semibold">{batchGroup.batch_group}</h3>
                                                     <div className="ml-4 space-y-1">
-                                                        <p><span className="font-medium">XGBoost Average:</span> {batch.xgb_average.toFixed(4)}</p>
-                                                        <p><span className="font-medium">Percentage:</span> {batch.percentage.toFixed(2)}%</p>
+                                                        <p><span className="font-medium">Combined XGBoost Average:</span> {batchGroup.combined_xgb_average.toFixed(4)}</p>
+                                                        <p><span className="font-medium">Allocation Percentage:</span> {batchGroup.percentage.toFixed(2)}%</p>
+                                                        <p><span className="font-medium">Total Rows:</span> {batchGroup.total_rows}</p>
+                                                        <p><span className="font-medium">Datasets:</span> {batchGroup.datasets_in_batch.join(', ')}</p>
+                                                    </div>
 
-                                                        {batch.results && Object.entries(batch.results).map(([modelName, modelResults]: [string, any]) => (
-                                                            <div key={modelName} className="ml-4 mt-2">
-                                                                <p className="font-medium">{modelName}:</p>
-                                                                <p className="text-sm">MSE: {modelResults.mse.toFixed(4)}</p>
-                                                                {modelResults.predictions && (
-                                                                    <div className="flex items-center gap-2 mt-1">
-                                                                        <BarChart className="h-4 w-4" />
-                                                                        <p className="text-xs text-muted-foreground">
-                                                                            Predictions: {modelResults.predictions.map((val: number) => val.toFixed(1)).join(', ')}
-                                                                        </p>
+                                                    <div className="ml-4 mt-4">
+                                                        <h4 className="font-medium">Individual Batch Details:</h4>
+                                                        {batchGroup.individual_batches.map((batch: any, batchIdx: number) => (
+                                                            <div key={batchIdx} className="ml-4 mt-2 p-2 border rounded">
+                                                                <p className="font-medium">{batch.batch_name}</p>
+                                                                <p className="text-sm">Dataset: {batch.dataset_name}</p>
+                                                                <p className="text-sm">XGBoost Average: {batch.xgb_average.toFixed(4)}</p>
+                                                                <p className="text-sm">Row Count: {batch.row_count}</p>
+
+                                                                {batch.results && Object.entries(batch.results).map(([modelName, modelResults]: [string, any]) => (
+                                                                    <div key={modelName} className="ml-2 mt-1">
+                                                                        <p className="text-xs font-medium">{modelName}:</p>
+                                                                        <p className="text-xs">MSE: {modelResults.mse.toFixed(4)}</p>
+                                                                        {modelResults.predictions && (
+                                                                            <div className="flex items-center gap-2 mt-1">
+                                                                                <BarChart className="h-3 w-3" />
+                                                                                <p className="text-xs text-muted-foreground">
+                                                                                    Predictions: {modelResults.predictions.map((val: number) => val.toFixed(1)).join(', ')}
+                                                                                </p>
+                                                                            </div>
+                                                                        )}
                                                                     </div>
-                                                                )}
+                                                                ))}
                                                             </div>
                                                         ))}
                                                     </div>
@@ -396,40 +468,29 @@ export default function Home() {
                                     </AccordionContent>
                                 </AccordionItem>
 
-                                <AccordionItem value="dataset-summaries">
-                                    <AccordionTrigger>Dataset Summaries</AccordionTrigger>
+                                <AccordionItem value="allocation-summary">
+                                    <AccordionTrigger>Allocation Summary</AccordionTrigger>
                                     <AccordionContent>
-                                        <div className="space-y-6">
-                                            {Object.entries(apiResponse.dataset_summaries || {}).map(([datasetName, summary]: [string, any], idx: number) => (
-                                                <div key={idx} className="space-y-2">
-                                                    <h3 className="text-lg font-semibold">{datasetName}</h3>
-                                                    <p className="ml-4"><span className="font-medium">Total Percentage:</span> {summary.total_percentage.toFixed(2)}%</p>
-                                                    <div className="ml-4 mt-2">
-                                                        <p className="font-medium">Batches:</p>
-                                                        <div className="rounded-md border mt-2">
-                                                            <Table>
-                                                                <TableHeader>
-                                                                    <TableRow>
-                                                                        <TableHead>Batch Name</TableHead>
-                                                                        <TableHead>XGBoost Average</TableHead>
-                                                                        <TableHead>Percentage</TableHead>
-                                                                    </TableRow>
-                                                                </TableHeader>
-                                                                <TableBody>
-                                                                    {summary.batches.map((batch: any, batchIdx: number) => (
-                                                                        <TableRow key={batchIdx}>
-                                                                            <TableCell>{batch.batch_name}</TableCell>
-                                                                            <TableCell>{batch.xgb_average.toFixed(2)}</TableCell>
-                                                                            <TableCell>{batch.percentage.toFixed(2)}%</TableCell>
-                                                                        </TableRow>
-                                                                    ))}
-                                                                </TableBody>
-                                                            </Table>
-                                                        </div>
-                                                    </div>
-                                                    <Separator className="my-4" />
-                                                </div>
-                                            ))}
+                                        <div className="space-y-4">
+                                            <h3 className="text-lg font-semibold">Final Allocation Percentages</h3>
+                                            <div className="rounded-md border">
+                                                <Table>
+                                                    <TableHeader>
+                                                        <TableRow>
+                                                            <TableHead>Batch Group</TableHead>
+                                                            <TableHead>Allocation Percentage</TableHead>
+                                                        </TableRow>
+                                                    </TableHeader>
+                                                    <TableBody>
+                                                        {Object.entries(apiResponse.allocation_summary || {}).map(([batchGroup, percentage]: [string, any]) => (
+                                                            <TableRow key={batchGroup}>
+                                                                <TableCell className="font-medium">{batchGroup}</TableCell>
+                                                                <TableCell>{percentage.toFixed(2)}%</TableCell>
+                                                            </TableRow>
+                                                        ))}
+                                                    </TableBody>
+                                                </Table>
+                                            </div>
                                         </div>
                                     </AccordionContent>
                                 </AccordionItem>
