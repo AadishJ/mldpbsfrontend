@@ -38,6 +38,7 @@ import {
   BarChart,
   TrendingUp,
   Users,
+  Database,
 } from "lucide-react";
 
 export default function Home() {
@@ -153,6 +154,14 @@ export default function Home() {
     }
 
     return { valid: true, datasets };
+  };
+
+  const formatBytes = (bytes: number) => {
+    if (bytes === 0) return "0 Bytes";
+    const k = 1024;
+    const sizes = ["Bytes", "KB", "MB", "GB"];
+    const i = Math.floor(Math.log(bytes) / Math.log(k));
+    return parseFloat((bytes / Math.pow(k, i)).toFixed(2)) + " " + sizes[i];
   };
 
   const handleSubmit = async () => {
@@ -398,7 +407,7 @@ export default function Home() {
                 Batch Processing Overview
               </h2>
 
-              <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-4 mb-6">
+              <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-5 gap-4 mb-6">
                 <Card>
                   <CardHeader className="pb-2">
                     <CardTitle className="text-lg">Original Datasets</CardTitle>
@@ -457,7 +466,75 @@ export default function Home() {
                     </p>
                   </CardContent>
                 </Card>
+                <Card>
+                  <CardHeader className="pb-2">
+                    <CardTitle className="text-lg flex items-center">
+                      <Database className="h-4 w-4 mr-1" />
+                      Total RAM Size
+                    </CardTitle>
+                  </CardHeader>
+                  <CardContent>
+                    <div className="text-2xl font-bold">
+                      {apiResponse.total_ram_size_mb
+                        ? `${apiResponse.total_ram_size_mb} MB`
+                        : "N/A"}
+                    </div>
+                    <p className="text-sm text-muted-foreground">
+                      {apiResponse.total_ram_size
+                        ? formatBytes(apiResponse.total_ram_size)
+                        : "memory pool size"}
+                    </p>
+                  </CardContent>
+                </Card>
               </div>
+
+              {/* System Information Card */}
+              {apiResponse.total_ram_size && (
+                <Card className="mb-6">
+                  <CardHeader>
+                    <CardTitle className="text-lg flex items-center">
+                      <Database className="h-5 w-5 mr-2" />
+                      System Memory Configuration
+                    </CardTitle>
+                    <CardDescription>
+                      Buddy allocator system specifications
+                    </CardDescription>
+                  </CardHeader>
+                  <CardContent>
+                    <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
+                      <div className="p-3 bg-muted rounded">
+                        <div className="text-sm font-medium">
+                          Total RAM Size
+                        </div>
+                        <div className="text-2xl font-bold">
+                          {formatBytes(apiResponse.total_ram_size)}
+                        </div>
+                        <div className="text-xs text-muted-foreground">
+                          {apiResponse.total_ram_size.toLocaleString()} bytes
+                        </div>
+                      </div>
+                      <div className="p-3 bg-muted rounded">
+                        <div className="text-sm font-medium">RAM Size (MB)</div>
+                        <div className="text-2xl font-bold">
+                          {apiResponse.total_ram_size_mb} MB
+                        </div>
+                        <div className="text-xs text-muted-foreground">
+                          Memory pool allocation
+                        </div>
+                      </div>
+                      <div className="p-3 bg-muted rounded">
+                        <div className="text-sm font-medium">
+                          Allocation Method
+                        </div>
+                        <div className="text-2xl font-bold">Buddy System</div>
+                        <div className="text-xs text-muted-foreground">
+                          Dynamic memory management
+                        </div>
+                      </div>
+                    </div>
+                  </CardContent>
+                </Card>
+              )}
 
               <div className="grid grid-cols-1 gap-6">
                 <Card>
@@ -603,6 +680,44 @@ export default function Home() {
                 Memory Allocation Performance
               </h2>
 
+              {/* RAM Size Information */}
+              {apiResponse.total_ram_size && (
+                <Card className="mb-6">
+                  <CardHeader>
+                    <CardTitle className="text-lg flex items-center">
+                      <Database className="h-5 w-5 mr-2" />
+                      Memory Pool Configuration
+                    </CardTitle>
+                  </CardHeader>
+                  <CardContent>
+                    <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                      <div>
+                        <div className="text-sm font-medium mb-1">
+                          Total RAM Size
+                        </div>
+                        <div className="text-xl font-bold">
+                          {formatBytes(apiResponse.total_ram_size)}
+                        </div>
+                        <div className="text-xs text-muted-foreground">
+                          {apiResponse.total_ram_size.toLocaleString()} bytes
+                        </div>
+                      </div>
+                      <div>
+                        <div className="text-sm font-medium mb-1">
+                          Available for Allocation
+                        </div>
+                        <div className="text-xl font-bold">
+                          {apiResponse.total_ram_size_mb} MB
+                        </div>
+                        <div className="text-xs text-muted-foreground">
+                          Buddy system pool
+                        </div>
+                      </div>
+                    </div>
+                  </CardContent>
+                </Card>
+              )}
+
               {parsedResults && parsedResults.length > 0 ? (
                 <div className="space-y-6">
                   {parsedResults.map((result: any, idx: number) => (
@@ -613,6 +728,12 @@ export default function Home() {
                         </CardTitle>
                         <CardDescription>
                           Buddy system allocation for batch {result.batchNumber}
+                          {apiResponse.total_ram_size && (
+                            <span className="ml-2">
+                              • RAM Pool:{" "}
+                              {formatBytes(apiResponse.total_ram_size)}
+                            </span>
+                          )}
                         </CardDescription>
                       </CardHeader>
                       <CardContent>
@@ -662,6 +783,75 @@ export default function Home() {
               <h2 className="text-2xl font-bold mb-4">Raw Results</h2>
 
               <Accordion type="single" collapsible className="w-full">
+                {/* System Configuration Section */}
+                <AccordionItem value="system-config">
+                  <AccordionTrigger>System Configuration</AccordionTrigger>
+                  <AccordionContent>
+                    <div className="space-y-4">
+                      <h3 className="text-lg font-semibold">
+                        Memory Configuration
+                      </h3>
+                      <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                        <div className="p-4 border rounded">
+                          <h4 className="font-medium mb-2">
+                            RAM Size Information
+                          </h4>
+                          {apiResponse.total_ram_size ? (
+                            <div className="space-y-1">
+                              <p className="text-sm">
+                                <span className="font-medium">
+                                  Total RAM Size:
+                                </span>{" "}
+                                {formatBytes(apiResponse.total_ram_size)}
+                              </p>
+                              <p className="text-sm">
+                                <span className="font-medium">
+                                  RAM Size (MB):
+                                </span>{" "}
+                                {apiResponse.total_ram_size_mb} MB
+                              </p>
+                              <p className="text-sm">
+                                <span className="font-medium">Raw Bytes:</span>{" "}
+                                {apiResponse.total_ram_size.toLocaleString()}{" "}
+                                bytes
+                              </p>
+                            </div>
+                          ) : (
+                            <p className="text-sm text-muted-foreground">
+                              RAM size information not available
+                            </p>
+                          )}
+                        </div>
+                        <div className="p-4 border rounded">
+                          <h4 className="font-medium mb-2">
+                            Processing Statistics
+                          </h4>
+                          <div className="space-y-1">
+                            <p className="text-sm">
+                              <span className="font-medium">
+                                Total Datasets:
+                              </span>{" "}
+                              {apiResponse.datasets?.length || 0}
+                            </p>
+                            <p className="text-sm">
+                              <span className="font-medium">
+                                Total Batches:
+                              </span>{" "}
+                              {apiResponse.total_batches || 0}
+                            </p>
+                            <p className="text-sm">
+                              <span className="font-medium">
+                                Buddy Allocations:
+                              </span>{" "}
+                              {apiResponse.all_buddy_outputs?.length || 0}
+                            </p>
+                          </div>
+                        </div>
+                      </div>
+                    </div>
+                  </AccordionContent>
+                </AccordionItem>
+
                 <AccordionItem value="batch-details">
                   <AccordionTrigger>Detailed Batch Processing</AccordionTrigger>
                   <AccordionContent>
@@ -793,6 +983,11 @@ export default function Home() {
                             <p className="text-sm text-muted-foreground mb-2">
                               Batch Number: {buddyOutput.batch_number}
                             </p>
+                            {buddyOutput.ram_size && (
+                              <p className="text-sm text-muted-foreground mb-2">
+                                RAM Size: {formatBytes(buddyOutput.ram_size)}
+                              </p>
+                            )}
                             <div className="mb-2">
                               <span className="text-sm font-medium">
                                 Percentages:{" "}
